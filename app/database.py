@@ -5,11 +5,11 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 # Use Render's DATABASE_URL
 DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL.startswith("postgres://"):
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = "postgresql+asyncpg://" + DATABASE_URL[len("postgres://"):]
 
-# Create an async engine with asyncpg, enforce future behavior
-engine = create_async_engine(DATABASE_URL, async_fallback=False, future=True)
+# Create an async engine with asyncpg
+engine = create_async_engine(DATABASE_URL)
 SessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
