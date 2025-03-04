@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Management System</title>
+    <link rel="icon" href="data:,">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        h1, h2 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, button {
+            padding: 10px;
+            margin-bottom: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background-color: #fff;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .response {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+            white-space: pre-wrap;
+        }
+        .action-button {
+            padding: 5px 10px;
+            font-size: 14px;
+            margin-right: 5px;
+        }
+        .action-button.hwid-reset {
+            background-color: #28a745;
+        }
+        .action-button.hwid-reset:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Key Management System</h1>
+
+        <!-- Login Section -->
+        <div class="section">
+            <h2>Login</h2>
+            <label for="username">Username:</label>
+            <input type="text" id="username" value="admin">
+            <label for="password">Password:</label>
+            <input type="password" id="password" value="securepassword123">
+            <button onclick="login()">Login</button>
+            <div id="login-response" class="response"></div>
+        </div>
+
+        <!-- Key List Section -->
+        <div class="section">
+            <h2>Key List</h2>
+            <button onclick="fetchKeys()">Refresh Key List</button>
+            <table id="key-table">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Created At</th>
+                        <th>Expires At</th>
+                        <th>Max Uses</th>
+                        <th>Current Uses</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="key-table-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Create Key Section -->
+        <div class="section">
+            <h2>Create Key</h2>
+            <label for="max_uses">Max Uses:</label>
+            <input type="number" id="max_uses" value="10">
+            <label for="expires_at">Expires At (YYYY-MM-DDThh:mm:ss):</label>
+            <input type="text" id="expires_at" value="2025-12-31T00:00:00">
+            <button onclick="createKey()">Create Key</button>
+            <div id="create-response" class="response"></div>
+        </div>
+
+        <!-- Validate Key Section -->
+        <div class="section">
+            <h2>Validate Key</h2>
+            <label for="validate_key">Key:</label>
+            <input type="text" id="validate_key" placeholder="Enter key to validate">
+            <label for="hwid">HWID:</label>
+            <input type="text" id="hwid" value="HWID123TEST">
+            <button onclick="validateKey()">Validate Key</button>
+            <div id="validate-response" class="response"></div>
+        </div>
+
+        <!-- Blacklist Key Section -->
+        <div class="section">
+            <h2>Blacklist Key</h2>
+            <label for="blacklist_key">Key:</label>
+            <input type="text" id="blacklist_key" placeholder="Enter key to blacklist">
+            <label for="reason">Reason:</label>
+            <input type="text" id="reason" value="Test blacklist">
+            <button onclick="blacklistKey()">Blacklist Key</button>
+            <div id="blacklist-response" class="response"></div>
+        </div>
+
+        <!-- Delete Key Section -->
+        <div class="section">
+            <h2>Delete Key</h2>
+            <label for="delete_key">Key:</label>
+            <input type="text" id="delete_key" placeholder="Enter key to delete">
+            <button onclick="deleteKey()">Delete Key</button>
+            <div id="delete-response" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        let token = null;
+
+        // Utility function to display responses
+        function displayResponse(elementId, response) {
+            const element = document.getElementById(elementId);
+            if (typeof response === 'object') {
+                element.textContent = JSON.stringify(response, null, 2);
+            } else {
+                element.textContent = response;
+            }
+        }
+
+        // Login to get JWT token
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('http://localhost:8000/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    token = data.access_token;
+                    displayResponse('login-response', 'Login successful! Token: ' + token);
+                    // Fetch keys after login
+                    fetchKeys();
+                } else {
+                    displayResponse('login-response', data);
+                }
+            } catch (error) {
+                displayResponse('login-response', 'Error: ' + error.message);
+            }
+        }
+
+        // Fetch all keys and display them in the table
+        async function fetchKeys() {
+            if (!token) {
+                displayResponse('login-response', 'Please login first!');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8000/keys/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const keys = await response.json();
+                const tableBody = document.getElementById('key-table-body');
+                tableBody.innerHTML = '';
+
+                keys.forEach(key => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${key.key}</td>
+                        <td>${new Date(key.created_at).toLocaleString()}</td>
+                        <td>${new Date(key.expires_at).toLocaleString()}</td>
+                        <td>${key.max_uses}</td>
+                        <td>${key.current_uses}</td>
+                        <td>${key.status}</td>
+                        <td>
+                            <button class="action-button hwid-reset" onclick="resetHwid('${key.key}')">HWID Reset</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching keys:', error);
+            }
+        }
+
+        // Create a new key
+        async function createKey() {
+            if (!token) {
+                displayResponse('create-response', 'Please login first!');
+                return;
+            }
+
+            const maxUses = document.getElementById('max_uses').value;
+            const expiresAt = document.getElementById('expires_at').value;
+
+            try {
+                const response = await fetch('http://localhost:8000/keys/', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        max_uses: parseInt(maxUses),
+                        expires_at: expiresAt
+                    })
+                });
+                const data = await response.json();
+                displayResponse('create-response', data);
+                fetchKeys(); // Refresh the key list after creating a key
+            } catch (error) {
+                displayResponse('create-response', 'Error: ' + error.message);
+            }
+        }
+
+        // Validate a key
+        async function validateKey() {
+            const key = document.getElementById('validate_key').value;
+            const hwid = document.getElementById('hwid').value;
+
+            try {
+                const response = await fetch('http://localhost:8000/keys/validate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        key: key,
+                        hwid: hwid
+                    })
+                });
+                const data = await response.json();
+                displayResponse('validate-response', data);
+            } catch (error) {
+                displayResponse('validate-response', 'Error: ' + error.message);
+            }
+        }
+
+        // Blacklist a key
+        async function blacklistKey() {
+            if (!token) {
+                displayResponse('blacklist-response', 'Please login first!');
+                return;
+            }
+
+            const key = document.getElementById('blacklist_key').value;
+            const reason = document.getElementById('reason').value;
+
+            try {
+                const response = await fetch('http://localhost:8000/blacklist/', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        key: key,
+                        reason: reason
+                    })
+                });
+                const data = await response.json();
+                displayResponse('blacklist-response', data);
+                fetchKeys(); // Refresh the key list after blacklisting
+            } catch (error) {
+                displayResponse('blacklist-response', 'Error: ' + error.message);
+            }
+        }
+
+        // Delete a key
+        async function deleteKey() {
+            if (!token) {
+                displayResponse('delete-response', 'Please login first!');
+                return;
+            }
+
+            const key = document.getElementById('delete_key').value;
+
+            try {
+                const response = await fetch(`http://localhost:8000/keys/${key}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const data = await response.json();
+                displayResponse('delete-response', data);
+                fetchKeys(); // Refresh the key list after deleting
+            } catch (error) {
+                displayResponse('delete-response', 'Error: ' + error.message);
+            }
+        }
+
+        // Reset HWID for a key
+        async function resetHwid(key) {
+            if (!token) {
+                displayResponse('login-response', 'Please login first!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:8000/keys/${key}/reset-hwid`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const data = await response.json();
+                displayResponse('login-response', data.message);
+                fetchKeys(); // Refresh the key list after resetting HWID
+            } catch (error) {
+                displayResponse('login-response', 'Error resetting HWID: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
