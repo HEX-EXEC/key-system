@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 from . import models, schemas
 from datetime import datetime, timezone
-from ..auth import get_password_hash
+from app.auth import get_password_hash  # Use absolute import instead of relative
 
 def get_user(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
@@ -35,7 +35,6 @@ def get_failed_attempts(db: Session, key: str, hwid: str):
         models.KeyValidationAttempt.hwid == hwid
     ).all()
 
-# Optional: If increment_key_use is used elsewhere, define it here
 def increment_key_use(db: Session, key: str, hwid: str, client_ip: str = None):
     db_key = get_key(db, key)
     if not db_key:

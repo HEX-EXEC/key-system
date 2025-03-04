@@ -1,10 +1,11 @@
 # app/routes/keys.py
 from fastapi import APIRouter, Depends, HTTPException, status
-from .. import schemas, crud
-from ..auth import get_current_user
-from ..database import get_db
+from app import schemas, crud
+from app.auth import get_current_user
+from app.database import get_db
 from sqlalchemy.orm import Session
-from ..models import Key, KeyValidationAttempt
+from sqlalchemy.sql import text  # Import text function
+from app.models import Key, KeyValidationAttempt
 from datetime import datetime, timezone
 import uuid
 
