@@ -1,19 +1,22 @@
 # app/database.py
 import os
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 # Use Render's DATABASE_URL
 DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = "postgresql+asyncpg://" + DATABASE_URL[len("postgres://"):]
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
 
-# Create an async engine with asyncpg
-engine = create_async_engine(DATABASE_URL)
-SessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+# Create a synchronous engine with psycopg2
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(bind=engine, class_=Session, expire_on_commit=False)
 
 Base = declarative_base()
 
-async def get_db():
-    async with SessionLocal() as session:
-        yield session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

@@ -1,121 +1,136 @@
 # app/crud.py
-import secrets
-from datetime import datetime
-from sqlalchemy.future import select
-from sqlalchemy import text
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from . import schemas
 from .models import Key, Log, Blacklist, User
-from .schemas import KeyCreate, BlacklistCreate, UserCreate
-from .auth import get_password_hash
-from fastapi import HTTPException
+from datetime import datetime
 
-async def create_key(db, key_data: KeyCreate):
-    key = secrets.token_urlsafe(32)
-    while (await db.execute(select(Key).filter_by(key=key))).scalars().first():
-        key = secrets.token_urlsafe(32)
-    db_key = Key(key=key, created_at=datetime.now(), **key_data.dict())
-    db.add(db_key)
-    await db.commit()
-    await db.refresh(db_key)
-    return db_key
+def is_blacklisted(db: Session, key: str):
+    blacklist = db.execute(select(Blacklist).filter_by(key=key)).scalars().first()
+    return blacklist is not None
 
-async def delete_key(db, key: str):
-    db_key = (await db.execute(select(Key).filter_by(key=key))).scalars().first()
-    if db_key:
-        await db.delete(db_key)
-        await db.commit()
-    return db_key
-
-async def is_blacklisted(db, key: str):
-    return (await db.execute(select(Blacklist).filter_by(key=key))).scalars().first() is not None
-
-async def blacklist_key(db, blacklist_data: BlacklistCreate):
-    db_blacklist = Blacklist(**blacklist_data.dict())
-    db.add(db_blacklist)
-    await db.commit()
-    await db.refresh(db_blacklist)
-    return db_blacklist
-
-async def create_user(db, user_data: UserCreate):
-    hashed_password = get_password_hash(user_data.password)
-    db_user = User(username=user_data.username, password_hash=hashed_password, role=user_data.role)
-    db.add(db_user)
-    await db.commit()
-    await db.refresh(db_user)
-    return db_user
-
-async def get_all_keys(db):
-    keys = (await db.execute(select(Key))).scalars().all()
-    result = []
-    for key in keys:
-        blacklisted = await is_blacklisted(db, key.key)
-        result.append({
-            "key": key.key,
-            "created_at": key.created_at,
-            "expires_at": key.expires_at,
-            "max_uses": key.max_uses,
-            "current_uses": key.current_uses,
-            "status": "blacklisted" if blacklisted else "active"
-        })
-    return result
-
-async def auto_blacklist_check(db, key: str, hwid: str, ip: str):
-    db_key = (await db.execute(select(Key).filter_by(key=key))).scalars().first()
-    if not db_key:
-        raise HTTPException(status_code=404, detail="Key not found")
-
-    logs = (await db.execute(select(Log).filter_by(key_id=db_key.id))).scalars().all()
-    hwids = {log.hwid for log in logs if log.hwid}
-    ips = {log.ip for log in logs if log.ip}
-    failed_attempts = len([log for log in logs if not log.success])
-
+def auto_blacklist_check(db: Session, key: str, hwid: str, ip: str):
     should_blacklist = False
     reason = None
 
-    # Expired
-    if db_key.expires_at and datetime.now() > db_key.expires_at:
+    # Get the key
+    db_key = db.execute(select(Key).filter_by(key=key)).scalars().first()
+    if not db_key:
+        return False, "Key not found"
+
+    # Check logs for this key
+    logs = db.execute(select(Log).filter_by(key_id=db_key.id)).scalars().all()
+    if not logs:
+        # First use of the key
+        if hwid != db_key.hwid:
+            reason = "Invalid HWID"
+        return should_blacklist, reason
+
+    # Check for HWID mismatch
+    if hwid != db_key.hwid:
+        failed_attempts = len([log for log in logs if not log.success])
+        if failed_attempts >= 3:
+            should_blacklist = True
+            reason = "Too many failed HWID attempts"
+            # Add to blacklist
+            blacklist = Blacklist(key=key, reason=reason)
+            db.add(blacklist)
+            db.commit()
+        else:
+            reason = "Invalid HWID"
+        return should_blacklist, reason
+
+    # Check for IP change (potential key sharing)
+    ips = set(log.ip for log in logs)
+    if ip not in ips:
+        # New IP detected
+        if len(ips) >= 1:  # Allow one IP change before blacklisting
+            should_blacklist = True
+            reason = "IP change detected, possible key sharing"
+            # Add to blacklist
+            blacklist = Blacklist(key=key, reason=reason)
+            db.add(blacklist)
+            db.commit()
+        return should_blacklist, reason
+
+    # Check for multiple HWIDs with different IPs (key sharing)
+    hwids = set(log.hwid for log in logs)
+    if len(hwids) > 1 and len(ips) > 1:
         should_blacklist = True
-        reason = "Key expired"
+        reason = "Multiple HWIDs and IPs detected, possible key sharing"
+        # Add to blacklist
+        blacklist = Blacklist(key=key, reason=reason)
+        db.add(blacklist)
+        db.commit()
 
-    # Exceeded max uses
-    elif db_key.max_uses is not None and db_key.current_uses >= db_key.max_uses:
-        should_blacklist = True
-        reason = "Max uses exceeded"
+    return should_blacklist, reason
 
-    # IP change detection (allow 1 IP only)
-    elif ip not in ips and len(ips) >= 1:
-        should_blacklist = True
-        reason = "IP change detected"
+def increment_key_use(db: Session, key: str, hwid: str, ip: str):
+    db_key = db.execute(select(Key).filter_by(key=key)).scalars().first()
+    if not db_key:
+        return None
 
-    # Key sharing detection (multiple HWIDs and IPs)
-    elif len(hwids) > 1 and len(ips) > 1:
-        should_blacklist = True
-        reason = "Key sharing detected (multiple HWIDs and IPs)"
+    # Increment current uses
+    db_key.current_uses += 1
+    db_key.last_used = datetime.utcnow()
 
-    # Multiple false HWID requests (blacklist after 3 failures)
-    elif failed_attempts >= 3:
-        should_blacklist = True
-        reason = "Too many failed HWID attempts"
-
-    # HWID mismatch (log failure but don’t blacklist yet if under 3)
-    elif hwids and hwid not in hwids and failed_attempts < 3:
-        db_log = Log(key_id=db_key.id, hwid=hwid, ip=ip, timestamp=datetime.now(), success=False)
-        db.add(db_log)
-        await db.commit()
-        return False, "Invalid HWID"
-
-    if should_blacklist and not await is_blacklisted(db, key):
-        blacklist_data = BlacklistCreate(key=key, reason=reason)
-        await blacklist_key(db, blacklist_data)
-        return True, reason
-
-    return False, None
-
-async def increment_key_use(db, key: str, hwid: str, ip: str):
-    db_key = (await db.execute(select(Key).filter_by(key=key))).scalars().first()
-    if db_key:
-        db_key.current_uses += 1
-        db_log = Log(key_id=db_key.id, hwid=hwid, ip=ip, timestamp=datetime.now(), success=True)
-        db.add(db_log)
-        await db.commit()
-        await db.refresh(db_key)
+    # Log the attempt
+    success = hwid == db_key.hwid
+    log = Log(key_id=db_key.id, hwid=hwid, ip=ip, success=success)
+    db.add(log)
+    db.commit()
+    db.refresh(db_key)
     return db_key
+
+def create_key(db: Session, key: schemas.KeyCreate):
+    db_key = Key(
+        key=schemas.generate_key(),
+        created_at=datetime.utcnow(),
+        expires_at=key.expires_at,
+        max_uses=key.max_uses,
+        hwid=key.hwid,
+        current_uses=0
+    )
+    db.add(db_key)
+    db.commit()
+    db.refresh(db_key)
+    return db_key
+
+def get_all_keys(db: Session):
+    return db.execute(select(Key)).scalars().all()
+
+def delete_key(db: Session, key: str):
+    db_key = db.execute(select(Key).filter_by(key=key)).scalars().first()
+    if not db_key:
+        return None
+    db.delete(db_key)
+    db.commit()
+    return db_key
+
+def get_blacklist(db: Session):
+    return db.execute(select(Blacklist)).scalars().all()
+
+def add_to_blacklist(db: Session, blacklist: schemas.BlacklistCreate):
+    db_blacklist = Blacklist(key=blacklist.key, reason=blacklist.reason)
+    db.add(db_blacklist)
+    db.commit()
+    db.refresh(db_blacklist)
+    return db_blacklist
+
+def remove_from_blacklist(db: Session, blacklist: schemas.BlacklistDelete):
+    db_blacklist = db.execute(select(Blacklist).filter_by(key=blacklist.key)).scalars().first()
+    if not db_blacklist:
+        return {"message": "Key not found in blacklist"}
+    db.delete(db_blacklist)
+    db.commit()
+    return {"message": "Key removed from blacklist"}
+
+def create_user(db: Session, user: schemas.UserCreate):
+    db_user = User(username=user.username, hashed_password=user.hashed_password, role=user.role)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def get_user(db: Session, username: str):
+    return db.execute(select(User).filter_by(username=username)).scalars().first()
