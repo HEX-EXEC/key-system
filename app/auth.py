@@ -1,10 +1,11 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from app.database import get_db  # Absolute import
-from app import schemas, models  # Absolute import
+from app.database import get_db
+from app import schemas, models
 from passlib.context import CryptContext
 import logging
 
@@ -13,10 +14,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Secret key for JWT (should be in environment variables in production)
-SECRET_KEY = "SECRET_KEY"  # Replace with a secure key
+# Use environment variable for SECRET_KEY, with a fallback for development
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
+if SECRET_KEY == "your-secret-key-here":
+    logger.warning("Using default SECRET_KEY. Set the SECRET_KEY environment variable for production.")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Default expiry for normal tokens
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -55,7 +58,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-    except JWTError:
+    except JWTError as e:
+        logger.error(f"JWT validation error: {str(e)}")
         raise credentials_exception
     user = db.query(models.User).filter(models.User.username == username).first()
     if user is None:
