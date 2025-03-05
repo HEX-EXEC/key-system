@@ -1,27 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from .. import schemas, crud
 from ..auth import get_current_user
 from ..database import get_db
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/blacklist", tags=["blacklist"])
+router = APIRouter()
 
-@router.post("/", response_model=schemas.Blacklist)
-def add_to_blacklist(blacklist: schemas.BlacklistCreate, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
+@router.post("/")
+def add_to_blacklist(blacklist: schemas.Blacklist, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    db_key = crud.get_key(db, blacklist.key)
-    if not db_key:
-        raise HTTPException(status_code=404, detail="Key not found")
     if crud.is_key_blacklisted(db, blacklist.key):
-        raise HTTPException(status_code=400, detail="Key is already blacklisted")
-    return crud.add_to_blacklist(db, blacklist.key, blacklist.reason)
+        raise HTTPException(status_code=400, detail="Key already blacklisted")
+    db_blacklist = crud.add_to_blacklist(db, blacklist.key, blacklist.reason)
+    return {"key": blacklist.key, "reason": blacklist.reason}
 
-@router.delete("/", response_model=dict)
-def remove_from_blacklist(blacklist: schemas.BlacklistCreate, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
+@router.delete("/")
+def remove_from_blacklist(blacklist: schemas.BlacklistRemove, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     if not crud.is_key_blacklisted(db, blacklist.key):
-        raise HTTPException(status_code=404, detail="Key not found in blacklist")
+        raise HTTPException(status_code=404, detail="Key not blacklisted")
     crud.remove_from_blacklist(db, blacklist.key)
     return {"message": "Key removed from blacklist"}
