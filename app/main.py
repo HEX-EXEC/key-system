@@ -11,24 +11,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
-
-# Include routers with logging
-logger.info("Including auth_router")
-app.include_router(auth_router)
-logger.info("Including keys_router")
-app.include_router(keys_router)
-logger.info("Including blacklist_router")
-app.include_router(blacklist_router)
-
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Test endpoint to confirm FastAPI routing
-@app.get("/test")
-async def test_endpoint():
-    return {"message": "Test endpoint works"}
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting application lifespan")
@@ -48,7 +30,18 @@ async def lifespan(app: FastAPI):
         engine.dispose()
         logger.info("Application shutdown complete")
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan)  # Define app once with lifespan
+
+# Include routers with logging
+logger.info("Including auth_router")
+app.include_router(auth_router)
+logger.info("Including keys_router")
+app.include_router(keys_router)
+logger.info("Including blacklist_router")
+app.include_router(blacklist_router)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def read_root(request: Request):
@@ -61,3 +54,7 @@ async def read_root(request: Request):
     except Exception as e:
         logger.error(f"Error serving index.html: {str(e)}")
         raise
+
+@app.get("/test")
+async def test_endpoint():
+    return {"message": "Test endpoint works"}
