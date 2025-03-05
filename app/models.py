@@ -1,4 +1,3 @@
-# app/models.py
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from .database import Base
 
@@ -6,7 +5,7 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
-    hashed_password = Column(String)  # Ensure this matches the column name in the database
+    hashed_password = Column(String)
     role = Column(String, default="user")
 
 class Key(Base):
@@ -14,7 +13,7 @@ class Key(Base):
     key = Column(String, primary_key=True, index=True)
     created_at = Column(DateTime)
     expires_at = Column(DateTime, nullable=True)
-    max_uses = Column(Integer)
+    max_uses = Column(Integer, nullable=True)
     current_uses = Column(Integer, default=0)
     hwid = Column(String, nullable=True)
 

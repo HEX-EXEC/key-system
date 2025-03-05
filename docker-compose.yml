@@ -1,15 +1,10 @@
 version: '3.8'
 services:
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: keyuser
-      POSTGRES_PASSWORD: keypass123
-      POSTGRES_DB: keydb
+  web:
+    build: .
     ports:
-      - "5432:5432"
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///keysystem.db
     volumes:
-      - db_data:/var/lib/postgresql/data
-
-volumes:
-  db_data:
+      - .:/app

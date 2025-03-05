@@ -1,11 +1,10 @@
-# app/routes/blacklist.py
 from fastapi import APIRouter, Depends, HTTPException, status
-from app import schemas, crud
-from app.auth import get_current_user
-from app.database import get_db
-from sqlalchemy.orm import Session  # Use synchronous Session
+from .. import schemas, crud
+from ..auth import get_current_user
+from ..database import get_db
+from sqlalchemy.orm import Session
 
-router = APIRouter()
+router = APIRouter(prefix="/blacklist", tags=["blacklist"])
 
 @router.post("/", response_model=schemas.Blacklist)
 def add_to_blacklist(blacklist: schemas.BlacklistCreate, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
@@ -18,7 +17,7 @@ def add_to_blacklist(blacklist: schemas.BlacklistCreate, db: Session = Depends(g
         raise HTTPException(status_code=400, detail="Key is already blacklisted")
     return crud.add_to_blacklist(db, blacklist.key, blacklist.reason)
 
-@router.delete("/", response_model=dict)  # Return a simple dict for the response
+@router.delete("/", response_model=dict)
 def remove_from_blacklist(blacklist: schemas.BlacklistCreate, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")

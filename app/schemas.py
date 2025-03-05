@@ -1,4 +1,3 @@
-# app/schemas.py
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -7,8 +6,10 @@ class UserBase(BaseModel):
     username: str
     role: str = "user"
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
+    username: str
     password: str
+    role: str = "user"
 
 class User(UserBase):
     id: int
@@ -29,7 +30,7 @@ class KeyCreate(BaseModel):
     expires_at: Optional[datetime] = None
     max_uses: Optional[int] = None
 
-class Key(KeyBase):  # Define the Key model expected by create_key
+class Key(KeyBase):
     class Config:
         from_attributes = True
 

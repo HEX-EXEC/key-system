@@ -1,38 +1,52 @@
-# app/crud.py
 from sqlalchemy.orm import Session
-from . import models, schemas
-from datetime import datetime, timezone
-from app.auth import get_password_hash
+from .schemas import User, Key, KeyValidation, Blacklist
+from .models import User as UserModel, Key as KeyModel, KeyValidationAttempt, Blacklist as BlacklistModel
+from .auth import get_password_hash
+
+def get_db():
+    from .database import SessionLocal
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def get_user(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
+    return db.query(UserModel).filter(UserModel.username == username).first()
 
 def get_key(db: Session, key: str):
-    return db.query(models.Key).filter(models.Key.key == key).first()
+    return db.query(KeyModel).filter(KeyModel.key == key).first()
 
 def get_all_keys(db: Session):
-    return db.query(models.Key).all()
+    return db.query(KeyModel).all()
 
 def delete_key(db: Session, key: str):
-    db_key = db.query(models.Key).filter(models.Key.key == key).first()
+    db_key = db.query(KeyModel).filter(KeyModel.key == key).first()
     if db_key:
         db.delete(db_key)
         db.commit()
     return db_key
 
 def is_key_blacklisted(db: Session, key: str):
-    return db.query(models.Blacklist).filter(models.Blacklist.key == key).first() is not None
+    return db.query(BlacklistModel).filter(BlacklistModel.key == key).first() is not None
 
 def add_to_blacklist(db: Session, key: str, reason: str):
-    blacklist = models.Blacklist(key=key, reason=reason)
+    blacklist = BlacklistModel(key=key, reason=reason)
     db.add(blacklist)
     db.commit()
     return blacklist
 
+def remove_from_blacklist(db: Session, key: str):
+    blacklist = db.query(BlacklistModel).filter(BlacklistModel.key == key).first()
+    if blacklist:
+        db.delete(blacklist)
+        db.commit()
+    return blacklist
+
 def get_failed_attempts(db: Session, key: str, hwid: str):
-    return db.query(models.KeyValidationAttempt).filter(
-        models.KeyValidationAttempt.key == key,
-        models.KeyValidationAttempt.hwid == hwid
+    return db.query(KeyValidationAttempt).filter(
+        KeyValidationAttempt.key == key,
+        KeyValidationAttempt.hwid == hwid
     ).all()
 
 def increment_key_use(db: Session, key: str, hwid: str, client_ip: str = None):
@@ -44,10 +58,3 @@ def increment_key_use(db: Session, key: str, hwid: str, client_ip: str = None):
     db.commit()
     db.refresh(db_key)
     return db_key
-
-def remove_from_blacklist(db: Session, key: str):
-    blacklist = db.query(models.Blacklist).filter(models.Blacklist.key == key).first()
-    if blacklist:
-        db.delete(blacklist)
-        db.commit()
-    return blacklist

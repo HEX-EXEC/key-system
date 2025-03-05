@@ -1,11 +1,10 @@
-# app/routes/keys.py
 from fastapi import APIRouter, Depends, HTTPException, status
-from app import schemas, crud
-from app.auth import get_current_user
-from app.database import get_db
+from .. import schemas, crud
+from ..auth import get_current_user
+from ..database import get_db
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import text  # Import text function
-from app.models import Key, KeyValidationAttempt
+from sqlalchemy.sql import text
+from ..models import Key, KeyValidationAttempt
 from datetime import datetime, timezone
 import uuid
 
@@ -56,7 +55,6 @@ def validate_key(validation: schemas.KeyValidation, db: Session = Depends(get_db
     if key.max_uses and key.current_uses >= key.max_uses:
         raise HTTPException(status_code=403, detail="Key usage limit exceeded")
 
-    # Log the validation attempt using KeyValidationAttempt
     attempt = KeyValidationAttempt(
         key=validation.key,
         hwid=validation.hwid,
@@ -66,7 +64,7 @@ def validate_key(validation: schemas.KeyValidation, db: Session = Depends(get_db
 
     if key.hwid and key.hwid != validation.hwid:
         failed_attempts = crud.get_failed_attempts(db, validation.key, validation.hwid)
-        if len(failed_attempts) >= 2:  # 3rd failed attempt
+        if len(failed_attempts) >= 2:
             crud.add_to_blacklist(db, validation.key, "Too many failed HWID attempts")
             raise HTTPException(status_code=403, detail="Key auto-blacklisted: Too many failed HWID attempts")
         raise HTTPException(status_code=400, detail=f"Invalid HWID (attempt {len(failed_attempts) + 1}/3)")
@@ -82,7 +80,6 @@ def reset_hwid(key: str, db: Session = Depends(get_db), current_user: schemas.Us
         raise HTTPException(status_code=404, detail="Key cannot be empty")
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    # Clear HWID logs from key_validation_attempts table
     db.execute(text("DELETE FROM key_validation_attempts WHERE key = :key"), {"key": key})
     db.commit()
     return {"message": f"HWID reset for key: {key}"}

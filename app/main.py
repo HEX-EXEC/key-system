@@ -1,23 +1,22 @@
-# app/main.py
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from app.database import engine, Base
-from app.routes import keys, blacklist
-from app.auth import router as auth_router
+from .database import engine, Base
+from .auth import router as auth_router
+from .routes.keys import router as keys_router
+from .routes.blacklist import router as blacklist_router
 from contextlib import asynccontextmanager
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Include routers
 app.include_router(auth_router)
-app.include_router(keys.router, prefix="/keys", tags=["keys"])
-app.include_router(blacklist.router, prefix="/blacklist", tags=["blacklist"])
+app.include_router(keys_router)
+app.include_router(blacklist_router)
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @asynccontextmanager
