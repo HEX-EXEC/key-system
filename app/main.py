@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.routing import APIRoute, Mount  # Import route types
+from fastapi.routing import APIRoute, Mount
 from .database import engine, Base
 from .auth import router as auth_router
 from .routes.keys import router as keys_router
@@ -37,7 +37,7 @@ app = FastAPI(lifespan=lifespan, redirect_slashes=False)
 logger.info("Including auth_router")
 app.include_router(auth_router)
 logger.info("Including keys_router")
-app.include_router(keys_router)
+app.include_router(keys_router, prefix="/keys")  # Explicit prefix
 logger.info("Including blacklist_router")
 app.include_router(blacklist_router)
 
