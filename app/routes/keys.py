@@ -23,10 +23,16 @@ def create_key(key: schemas.KeyCreate, db: Session = Depends(get_db), current_us
     if current_user.role != "admin":
         logger.warning(f"User {current_user.username} does not have admin role")
         raise HTTPException(status_code=403, detail="Not authorized to create keys")
+    
+    # Ensure expires_at is timezone-aware
+    expires_at = key.expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
     new_key = Key(
         key=str(uuid.uuid4()),
         created_at=datetime.now(timezone.utc),
-        expires_at=key.expires_at,
+        expires_at=expires_at,
         max_uses=key.max_uses,
         current_uses=0
     )
