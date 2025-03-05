@@ -37,7 +37,7 @@ app = FastAPI(lifespan=lifespan, redirect_slashes=False)
 logger.info("Including auth_router")
 app.include_router(auth_router)
 logger.info("Including keys_router")
-app.include_router(keys_router, prefix="/keys")  # Explicit prefix
+app.include_router(keys_router, prefix="/api/keys")  # Use a different prefix
 logger.info("Including blacklist_router")
 app.include_router(blacklist_router)
 
