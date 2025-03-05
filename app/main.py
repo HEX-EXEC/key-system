@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
         engine.dispose()
         logger.info("Application shutdown complete")
 
-app = FastAPI(lifespan=lifespan, redirect_slashes=False)  # Disable trailing slash redirects
+app = FastAPI(lifespan=lifespan, redirect_slashes=False)
 
 # Include routers with logging
 logger.info("Including auth_router")
@@ -42,6 +42,11 @@ app.include_router(blacklist_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Log all registered routes
+logger.info("Registered routes:")
+for route in app.routes:
+    logger.info(f"Route: {route.path}, Methods: {route.methods}")
 
 @app.get("/")
 async def read_root(request: Request):
