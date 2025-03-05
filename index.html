@@ -2,9 +2,75 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Key System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Management System</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/additional-styles.css">
 </head>
 <body>
-    <h1>Welcome to the Key System</h1>
+    <button id="logout-btn" style="display: none;">Logout</button>
+    <div class="container">
+        <h1>Key Management System</h1>
+
+        <!-- Login Section -->
+        <div id="login-section">
+            <h2>Login</h2>
+            <form id="login-form">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+                <button type="submit">Login (Non-Expiring Token)</button>
+            </form>
+            <p id="login-message"></p>
+        </div>
+
+        <!-- Create Key Section (Admin Only) -->
+        <div id="create-key-section" style="display: none;">
+            <h2>Create a New Key (Admin Only)</h2>
+            <form id="create-key-form">
+                <label for="max_uses">Max Uses:</label>
+                <input type="number" id="max_uses" name="max_uses" value="10">
+                <label for="expires_at">Expires At (YYYY-MM-DDTHH:MM:SS):</label>
+                <input type="text" id="expires_at" name="expires_at" placeholder="2025-12-31T00:00:00" value="2025-12-31T00:00:00">
+                <button type="submit">Create Key</button>
+            </form>
+            <p id="create-key-message"></p>
+        </div>
+
+        <!-- Validate Key Section -->
+        <div id="validate-key-section" style="display: none;">
+            <h2>Validate a Key</h2>
+            <form id="validate-key-form">
+                <label for="validate-key">Key:</label>
+                <input type="text" id="validate-key" name="key" required>
+                <label for="hwid">HWID:</label>
+                <input type="text" id="hwid" name="hwid" value="HWID123" required>
+                <button type="submit">Validate Key</button>
+            </form>
+            <p id="validate-key-message"></p>
+        </div>
+
+        <!-- Manage Keys Section (Admin Only) -->
+        <div id="manage-keys-section" style="display: none;">
+            <h2>Manage Keys (Admin Only)</h2>
+            <table id="keys-table">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Created At</th>
+                        <th>Expires At</th>
+                        <th>Max Uses</th>
+                        <th>Current Uses</th>
+                        <th>HWID</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="keys-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/static/scripts.js"></script>
 </body>
 </html>
