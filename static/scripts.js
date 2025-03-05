@@ -19,7 +19,12 @@ async function makeRequest(endpoint, method = 'GET', body = null, auth = true, c
         headers,
     };
     if (body) {
-        config.body = body; // Let the caller handle body serialization
+        // Serialize body based on Content-Type
+        if (headers['Content-Type'] === 'application/json') {
+            config.body = JSON.stringify(body); // Serialize to JSON for application/json
+        } else {
+            config.body = body; // Use body as-is for other Content-Types (e.g., application/x-www-form-urlencoded)
+        }
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
