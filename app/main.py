@@ -17,12 +17,17 @@ app = FastAPI()
 logger.info("Including auth_router")
 app.include_router(auth_router)
 logger.info("Including keys_router")
-app.include_router(keys_router)  # Ensure this line is present
+app.include_router(keys_router)
 logger.info("Including blacklist_router")
 app.include_router(blacklist_router)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Test endpoint to confirm FastAPI routing
+@app.get("/test")
+async def test_endpoint():
+    return {"message": "Test endpoint works"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
