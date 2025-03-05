@@ -1,9 +1,9 @@
-fastapi==0.115.0
-uvicorn==0.34.0
-gunicorn==23.0.0
-sqlalchemy==2.0.38
-pydantic==2.10.6
-python-jose==3.4.0
-passlib[bcrypt]==1.7.4
-psycopg2-binary==2.9.9
-python-multipart==0.0.20  # Added for form data parsing
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-jose
+passlib[bcrypt]>=1.7.4
+bcrypt<4.1.0  # Pin to a version before 4.1.0 if needed
+python-multipart==0.0.20
+gunicorn
