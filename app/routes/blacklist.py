@@ -1,26 +1,28 @@
 # app/routes/blacklist.py
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from .. import crud, schemas
-from ..database import get_db
-from ..auth import get_current_user
+from fastapi import APIRouter, Depends, HTTPException, status
+from app import schemas, crud
+from app.auth import get_current_user
+from app.database import get_db
+from sqlalchemy.orm import Session  # Use synchronous Session
 
 router = APIRouter()
 
-@router.get("/")
-def get_blacklist(db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized")
-    return crud.get_blacklist(db)
-
 @router.post("/", response_model=schemas.Blacklist)
-def add_to_blacklist(blacklist: schemas.BlacklistCreate, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
+def add_to_blacklist(blacklist: schemas.BlacklistCreate, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    return crud.add_to_blacklist(db, blacklist)
+    db_key = crud.get_key(db, blacklist.key)
+    if not db_key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    if crud.is_key_blacklisted(db, blacklist.key):
+        raise HTTPException(status_code=400, detail="Key is already blacklisted")
+    return crud.add_to_blacklist(db, blacklist.key, blacklist.reason)
 
-@router.delete("/")
-def remove_from_blacklist(blacklist: schemas.BlacklistDelete, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
+@router.delete("/", response_model=dict)  # Return a simple dict for the response
+def remove_from_blacklist(blacklist: schemas.BlacklistCreate, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    return crud.remove_from_blacklist(db, blacklist)
+    if not crud.is_key_blacklisted(db, blacklist.key):
+        raise HTTPException(status_code=404, detail="Key not found in blacklist")
+    crud.remove_from_blacklist(db, blacklist.key)
+    return {"message": "Key removed from blacklist"}

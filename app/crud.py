@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 from . import models, schemas
 from datetime import datetime, timezone
-from app.auth import get_password_hash  # Use absolute import instead of relative
+from app.auth import get_password_hash
 
 def get_user(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
@@ -44,3 +44,10 @@ def increment_key_use(db: Session, key: str, hwid: str, client_ip: str = None):
     db.commit()
     db.refresh(db_key)
     return db_key
+
+def remove_from_blacklist(db: Session, key: str):
+    blacklist = db.query(models.Blacklist).filter(models.Blacklist.key == key).first()
+    if blacklist:
+        db.delete(blacklist)
+        db.commit()
+    return blacklist
