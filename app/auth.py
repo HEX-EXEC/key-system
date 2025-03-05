@@ -1,36 +1,46 @@
-import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
-from . import schemas, crud
-from .database import get_db
 from sqlalchemy.orm import Session
-from .utils import verify_password, get_password_hash
+from ..database import get_db
+from .. import schemas, models
+from passlib.context import CryptContext
+import logging
 
-SECRET_KEY = os.getenv("SECRET_KEY", "L5h9p1etACq0zwtkxkMf8Z0umV2W6D6FwZ6c4IuTxO0")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Secret key for JWT (should be in environment variables in production)
+SECRET_KEY = "SECRET_KEY"  # Replace with a secure key
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30  # Default expiry for normal tokens
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# OAuth2 scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
 def authenticate_user(db: Session, username: str, password: str):
-    user = crud.get_user(db, username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if not user or not verify_password(password, user.hashed_password):
+        return None
     return user
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
+        to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -47,7 +57,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = crud.get_user(db, username)
+    user = db.query(models.User).filter(models.User.username == username).first()
     if user is None:
         raise credentials_exception
     return user
@@ -67,14 +77,18 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-def test_auth():
-    print("Starting test_auth...")
-    try:
-        token = create_access_token(data={"sub": "testuser"})
-        print(f"Generated JWT token: {token}")
-    except Exception as e:
-        print(f"Error in test_auth: {str(e)}")
-
-if __name__ == "__main__":
-    print(f"Running test block with __name__ = {__name__}")
-    test_auth()
+@router.post("/token/non-expiring")
+async def login_for_non_expiring_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # Set expiry to 100 years in the future
+    access_token_expires = timedelta(days=365 * 100)  # 100 years
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
