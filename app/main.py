@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
         engine.dispose()
         logger.info("Application shutdown complete")
 
-app = FastAPI(lifespan=lifespan)  # Define app once with lifespan
+app = FastAPI(lifespan=lifespan, redirect_slashes=False)  # Disable trailing slash redirects
 
 # Include routers with logging
 logger.info("Including auth_router")
