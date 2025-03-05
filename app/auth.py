@@ -6,9 +6,8 @@ from datetime import datetime, timedelta, timezone
 from . import schemas, crud
 from .database import get_db
 from sqlalchemy.orm import Session
-from .utils import verify_password, get_password_hash  # Import from utils
+from .utils import verify_password, get_password_hash
 
-# Load SECRET_KEY from environment variable
 SECRET_KEY = os.getenv("SECRET_KEY", "L5h9p1etACq0zwtkxkMf8Z0umV2W6D6FwZ6c4IuTxO0")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -67,3 +66,11 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+# Test function to run when the module is executed
+def test_auth():
+    token = create_access_token(data={"sub": "testuser"})
+    print(f"Generated JWT token: {token}")
+
+if __name__ == "__main__" or __name__ == "app.auth":
+    test_auth()
