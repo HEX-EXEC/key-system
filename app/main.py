@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.routing import APIRoute, Mount  # Import route types
 from .database import engine, Base
 from .auth import router as auth_router
 from .routes.keys import router as keys_router
@@ -46,7 +47,12 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Log all registered routes
 logger.info("Registered routes:")
 for route in app.routes:
-    logger.info(f"Route: {route.path}, Methods: {route.methods}")
+    if isinstance(route, APIRoute):
+        logger.info(f"Route: {route.path}, Methods: {route.methods}")
+    elif isinstance(route, Mount):
+        logger.info(f"Mount: {route.path}")
+    else:
+        logger.info(f"Other route: {route.path}")
 
 @app.get("/")
 async def read_root(request: Request):
