@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from .. import schemas, crud
-from ..auth import get_current_user
-from ..database import get_db
+from app import schemas, crud  # Absolute import
+from app.auth import get_current_user  # Absolute import
+from app.database import get_db  # Absolute import
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import text
-from ..models import Key, KeyValidationAttempt
+from app.models import Key, KeyValidationAttempt  # Absolute import
 from datetime import datetime, timezone
 import uuid
 import logging

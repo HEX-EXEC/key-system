@@ -1,18 +1,5 @@
 from sqlalchemy.orm import Session
-from .schemas import User, Key, KeyValidation, Blacklist
-from .models import User as UserModel, Key as KeyModel, KeyValidationAttempt, Blacklist as BlacklistModel
-from .utils import get_password_hash  # Import from utils
-
-def get_db():
-    from .database import SessionLocal
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-def get_user(db: Session, username: str):
-    return db.query(UserModel).filter(UserModel.username == username).first()
+from app.models import Key as KeyModel, Blacklist, KeyValidationAttempt  # Absolute import
 
 def get_key(db: Session, key: str):
     return db.query(KeyModel).filter(KeyModel.key == key).first()
@@ -27,34 +14,26 @@ def delete_key(db: Session, key: str):
         db.commit()
     return db_key
 
+def get_failed_attempts(db: Session, key: str, hwid: str):
+    return db.query(KeyValidationAttempt).filter(KeyValidationAttempt.key == key, KeyValidationAttempt.hwid == hwid).all()
+
 def is_key_blacklisted(db: Session, key: str):
-    return db.query(BlacklistModel).filter(BlacklistModel.key == key).first() is not None
+    return db.query(Blacklist).filter(Blacklist.key == key).first() is not None
 
 def add_to_blacklist(db: Session, key: str, reason: str):
-    blacklist = BlacklistModel(key=key, reason=reason)
-    db.add(blacklist)
+    from datetime import datetime, timezone
+    db_blacklist = Blacklist(
+        key=key,
+        reason=reason,
+        blacklisted_at=datetime.now(timezone.utc)
+    )
+    db.add(db_blacklist)
     db.commit()
-    return blacklist
+    db.refresh(db_blacklist)
+    return db_blacklist
 
 def remove_from_blacklist(db: Session, key: str):
-    blacklist = db.query(BlacklistModel).filter(BlacklistModel.key == key).first()
-    if blacklist:
-        db.delete(blacklist)
+    db_blacklist = db.query(Blacklist).filter(Blacklist.key == key).first()
+    if db_blacklist:
+        db.delete(db_blacklist)
         db.commit()
-    return blacklist
-
-def get_failed_attempts(db: Session, key: str, hwid: str):
-    return db.query(KeyValidationAttempt).filter(
-        KeyValidationAttempt.key == key,
-        KeyValidationAttempt.hwid == hwid
-    ).all()
-
-def increment_key_use(db: Session, key: str, hwid: str, client_ip: str = None):
-    db_key = get_key(db, key)
-    if not db_key:
-        return None
-    db_key.current_uses += 1
-    db_key.hwid = hwid
-    db.commit()
-    db.refresh(db_key)
-    return db_key

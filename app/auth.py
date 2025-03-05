@@ -3,8 +3,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from ..database import get_db
-from .. import schemas, models
+from app.database import get_db  # Absolute import
+from app import schemas, models  # Absolute import
 from passlib.context import CryptContext
 import logging
 
