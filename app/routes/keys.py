@@ -8,7 +8,7 @@ from ..models import Key, KeyValidationAttempt
 from datetime import datetime, timezone
 import uuid
 
-router = APIRouter()  # No prefix, so endpoints are at /keys/
+router = APIRouter()
 
 @router.post("/", response_model=schemas.Key)
 def create_key(key: schemas.KeyCreate, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
@@ -38,7 +38,7 @@ def delete_key(key: str, db: Session = Depends(get_db), current_user: schemas.Us
         raise HTTPException(status_code=404, detail="Key cannot be empty")
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    db_key = crud.delete_key(db, key)
+    db_key = crud.delete_key(db, key)  # Line 41
     if db_key is None:
         raise HTTPException(status_code=404, detail="Key not found")
     return {"message": "Key deleted"}
