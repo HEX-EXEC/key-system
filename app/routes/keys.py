@@ -7,9 +7,16 @@ from sqlalchemy.sql import text
 from ..models import Key, KeyValidationAttempt
 from datetime import datetime, timezone
 import uuid
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+logger.info("Loading keys.py module")
 
 router = APIRouter()
 
+logger.info("Defining create_key endpoint")
 @router.post("/", response_model=schemas.Key)
 def create_key(key: schemas.KeyCreate, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
     if current_user.role != "admin":
@@ -26,12 +33,14 @@ def create_key(key: schemas.KeyCreate, db: Session = Depends(get_db), current_us
     db.refresh(new_key)
     return new_key
 
+logger.info("Defining get_all_keys endpoint")
 @router.get("/")
 def get_all_keys(db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     return crud.get_all_keys(db)
 
+logger.info("Defining delete_key endpoint")
 @router.delete("/{key}")
 def delete_key(key: str, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
     if not key:
@@ -43,6 +52,7 @@ def delete_key(key: str, db: Session = Depends(get_db), current_user: schemas.Us
         raise HTTPException(status_code=404, detail="Key not found")
     return {"message": "Key deleted"}
 
+logger.info("Defining validate_key endpoint")
 @router.post("/validate")
 def validate_key(validation: schemas.KeyValidation, db: Session = Depends(get_db)):
     key = crud.get_key(db, validation.key)
@@ -74,6 +84,7 @@ def validate_key(validation: schemas.KeyValidation, db: Session = Depends(get_db
     db.commit()
     return {"valid": True, "message": "Key validated successfully"}
 
+logger.info("Defining reset_hwid endpoint")
 @router.post("/{key}/reset-hwid")
 def reset_hwid(key: str, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
     if not key:
