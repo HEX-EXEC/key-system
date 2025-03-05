@@ -38,7 +38,7 @@ def delete_key(key: str, db: Session = Depends(get_db), current_user: schemas.Us
         raise HTTPException(status_code=404, detail="Key cannot be empty")
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    db_key = crud.delete_key(db, key)  # Line 41
+    db_key = crud.delete_key(db, key)
     if db_key is None:
         raise HTTPException(status_code=404, detail="Key not found")
     return {"message": "Key deleted"}
@@ -83,3 +83,6 @@ def reset_hwid(key: str, db: Session = Depends(get_db), current_user: schemas.Us
     db.execute(text("DELETE FROM key_validation_attempts WHERE key = :key"), {"key": key})
     db.commit()
     return {"message": f"HWID reset for key: {key}"}
+
+if __name__ == "__main__":
+    print("Successfully loaded keys.py")

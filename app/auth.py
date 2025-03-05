@@ -67,10 +67,14 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# Test function to run when the module is executed
 def test_auth():
-    token = create_access_token(data={"sub": "testuser"})
-    print(f"Generated JWT token: {token}")
+    print("Starting test_auth...")
+    try:
+        token = create_access_token(data={"sub": "testuser"})
+        print(f"Generated JWT token: {token}")
+    except Exception as e:
+        print(f"Error in test_auth: {str(e)}")
 
-if __name__ == "__main__" or __name__ == "app.auth":
+if __name__ == "__main__":
+    print(f"Running test block with __name__ = {__name__}")
     test_auth()
