@@ -70,7 +70,13 @@ def validate_key(validation: schemas.KeyValidation, db: Session = Depends(get_db
         raise HTTPException(status_code=404, detail="Key not found")
     if crud.is_key_blacklisted(db, validation.key):
         raise HTTPException(status_code=403, detail="Key is blacklisted")
-    if key.expires_at and key.expires_at < datetime.now(timezone.utc):
+    
+    # Ensure expires_at is timezone-aware before comparison
+    expires_at = key.expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    if expires_at and expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=403, detail="Key has expired")
     if key.max_uses and key.current_uses >= key.max_uses:
         raise HTTPException(status_code=403, detail="Key usage limit exceeded")
