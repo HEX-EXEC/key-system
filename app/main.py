@@ -13,10 +13,15 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+# Include routers with logging
+logger.info("Including auth_router")
 app.include_router(auth_router)
-app.include_router(keys_router)
+logger.info("Including keys_router")
+app.include_router(keys_router)  # Ensure this line is present
+logger.info("Including blacklist_router")
 app.include_router(blacklist_router)
 
+# Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @asynccontextmanager

@@ -8,7 +8,7 @@ from ..models import Key, KeyValidationAttempt
 from datetime import datetime, timezone
 import uuid
 
-router = APIRouter()
+router = APIRouter()  # No prefix, so endpoints are at /keys/
 
 @router.post("/", response_model=schemas.Key)
 def create_key(key: schemas.KeyCreate, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)):
