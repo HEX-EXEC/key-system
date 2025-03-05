@@ -6,26 +6,35 @@ let isAdmin = false;
 const API_BASE_URL = 'https://key-db.onrender.com';
 
 // Utility function to make API requests
-async function makeRequest(endpoint, method = 'GET', body = null, auth = true) {
-    const headers = {
-        'Content-Type': 'application/json',
-    };
+async function makeRequest(endpoint, method = 'GET', body = null, auth = true, customHeaders = {}) {
+    const headers = {};
     if (auth && token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
+    // Merge custom headers (e.g., Content-Type) with default headers
+    Object.assign(headers, customHeaders);
 
     const config = {
         method,
         headers,
     };
     if (body) {
-        config.body = JSON.stringify(body);
+        config.body = body; // Let the caller handle body serialization
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || response.statusText);
+        // Handle FastAPI error responses with a "detail" field
+        if (errorData.detail) {
+            if (Array.isArray(errorData.detail)) {
+                // If detail is an array (e.g., validation errors), join the messages
+                throw new Error(errorData.detail.map(err => err.msg).join(', '));
+            } else {
+                throw new Error(errorData.detail);
+            }
+        }
+        throw new Error(response.statusText);
     }
     return response.json();
 }
@@ -131,6 +140,8 @@ document.getElementById('create-key-form').addEventListener('submit', async (e) 
         const data = await makeRequest('/api/keys/', 'POST', {
             max_uses: parseInt(maxUses),
             expires_at: expiresAt
+        }, true, {
+            'Content-Type': 'application/json'
         });
         message.textContent = `Key created: ${data.key}`;
         message.style.color = 'green';
@@ -149,7 +160,9 @@ document.getElementById('validate-key-form').addEventListener('submit', async (e
     const message = document.getElementById('validate-key-message');
 
     try {
-        const data = await makeRequest('/api/keys/validate', 'POST', { key, hwid }, false);
+        const data = await makeRequest('/api/keys/validate', 'POST', { key, hwid }, false, {
+            'Content-Type': 'application/json'
+        });
         message.textContent = data.message;
         message.style.color = 'green';
         if (isAdmin) loadKeys();
@@ -162,7 +175,9 @@ document.getElementById('validate-key-form').addEventListener('submit', async (e
 // Blacklist a key
 async function blacklistKey(key) {
     try {
-        const data = await makeRequest('/blacklist/', 'POST', { key, reason: 'Blacklisted via UI' });
+        const data = await makeRequest('/blacklist/', 'POST', { key, reason: 'Blacklisted via UI' }, true, {
+            'Content-Type': 'application/json'
+        });
         alert(`Key blacklisted: ${key}`);
         loadKeys();
     } catch (error) {
@@ -173,7 +188,9 @@ async function blacklistKey(key) {
 // Remove from blacklist
 async function removeFromBlacklist(key) {
     try {
-        const data = await makeRequest('/blacklist/', 'DELETE', { key });
+        const data = await makeRequest('/blacklist/', 'DELETE', { key }, true, {
+            'Content-Type': 'application/json'
+        });
         alert(`Key removed from blacklist: ${key}`);
         loadKeys();
     } catch (error) {
@@ -184,7 +201,7 @@ async function removeFromBlacklist(key) {
 // Reset HWID
 async function resetHWID(key) {
     try {
-        const data = await makeRequest(`/api/keys/${key}/reset-hwid`, 'POST');
+        const data = await makeRequest(`/api/keys/${key}/reset-hwid`, 'POST', null, true);
         alert(`HWID reset for key: ${key}`);
         loadKeys();
     } catch (error) {
@@ -196,7 +213,7 @@ async function resetHWID(key) {
 async function deleteKey(key) {
     if (confirm(`Are you sure you want to delete key: ${key}?`)) {
         try {
-            const data = await makeRequest(`/api/keys/${key}`, 'DELETE');
+            const data = await makeRequest(`/api/keys/${key}`, 'DELETE', null, true);
             alert(`Key deleted: ${key}`);
             loadKeys();
         } catch (error) {
