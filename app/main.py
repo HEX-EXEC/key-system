@@ -2,8 +2,8 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from app.database import engine, Base  # Use absolute import
-from app.routes import keys, blacklist  # Use absolute import
+from app.database import engine, Base
+from app.routes import keys, blacklist
 from contextlib import asynccontextmanager
 
 app = FastAPI()
@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-@app.get("/", response_class=HTMLResponse, methods=["GET", "HEAD"])
+@app.get("/", response_class=HTMLResponse)  # Remove methods=["GET", "HEAD"]
 async def read_root(request: Request):
     with open("index.html", "r") as f:
         return f.read()
