@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from .schemas import User, Key, KeyValidation, Blacklist
 from .models import User as UserModel, Key as KeyModel, KeyValidationAttempt, Blacklist as BlacklistModel
-from .auth import get_password_hash
+from .utils import get_password_hash  # Import from utils
 
 def get_db():
     from .database import SessionLocal

@@ -2,27 +2,20 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from . import schemas, crud
 from .database import get_db
 from sqlalchemy.orm import Session
+from .utils import verify_password, get_password_hash  # Import from utils
 
-# Load SECRET_KEY from environment variable, with a fallback for development
+# Load SECRET_KEY from environment variable
 SECRET_KEY = os.getenv("SECRET_KEY", "L5h9p1etACq0zwtkxkMf8Z0umV2W6D6FwZ6c4IuTxO0")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 router = APIRouter()
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
 def authenticate_user(db: Session, username: str, password: str):
     user = crud.get_user(db, username)

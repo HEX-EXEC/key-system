@@ -28,6 +28,9 @@ print("Created users table with correct schema.")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
 def create_admin_user():
     db = SessionLocal()
     try:
@@ -35,7 +38,7 @@ def create_admin_user():
         if admin:
             print("Admin user already exists.")
             return
-        hashed_password = pwd_context.hash("securepassword123")
+        hashed_password = get_password_hash("securepassword123")
         admin_user = User(
             username="admin",
             hashed_password=hashed_password,
